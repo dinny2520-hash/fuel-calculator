@@ -352,8 +352,6 @@
     <div class="modal-handle"></div>
     <div class="modal-title">⚙️ ตั้งค่าระบบ</div>
     <div class="modal-subtitle">ซิงค์ผ่าน Google Sheets · ทุกเครื่องเห็นเหมือนกัน</div>
-      <div class="divider"></div>
-    </div>
 
     <!-- PIN LOGIN -->
     <div class="setting-label">🔑 รหัสผ่านแอดมิน</div>
@@ -421,9 +419,11 @@ const DEFAULT_FUELS = [
   { id:'e20',       name:'แก๊สโซฮอล์ E20',      price:33.34 },
 ];
 
-let fuelTypes    = JSON.parse(JSON.stringify(DEFAULT_FUELS));
-let fuelEco      = 12;
-let adminPin     = '1234';
+// โหลดจาก cache ก่อน — ป้องกันราคากลับเป็น default ตอนรีเฟรช
+const _cache     = JSON.parse(localStorage.getItem('fuelCalc_cache') || 'null');
+let fuelTypes    = (_cache && _cache.fuelTypes) ? _cache.fuelTypes : JSON.parse(JSON.stringify(DEFAULT_FUELS));
+let fuelEco      = (_cache && _cache.fuelEco)   ? _cache.fuelEco   : 12;
+let adminPin     = (_cache && _cache.adminPin)   ? _cache.adminPin  : '1234';
 const scriptUrl  = 'https://script.google.com/macros/s/AKfycbyMIn-ELsUYthDWIDWDB-WXTcbovAJH6mOKTSerQmv7T-3INH_XUiPNfmoaye1d7NB1/exec';
 let selectedFuel = null;   // { id, name, price }
 let syncTimer    = null;
@@ -480,6 +480,10 @@ async function fetchConfig(silent=false) {
       if (d.fuelTypes) {
         try { fuelTypes = JSON.parse(d.fuelTypes); } catch(e){}
       }
+      // บันทึก cache ไว้ใน localStorage — โหลดเร็วตอนรีเฟรช
+      try {
+        localStorage.setItem('fuelCalc_cache', JSON.stringify({ fuelTypes, fuelEco, adminPin }));
+      } catch(e){}
       document.getElementById('displayEco').textContent = fuelEco + ' กม./ล.';
       // อัปเดต selectedFuel แบบ silent (ไม่ clearResult ไม่ reset UI)
       if (selectedFuel) {
