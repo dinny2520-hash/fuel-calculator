@@ -461,12 +461,21 @@ async function fetchConfig(silent=false) {
       if (d.fuelTypes) {
         try { fuelTypes = JSON.parse(d.fuelTypes); } catch(e){}
       }
-      // ถ้า selectedFuel มีอยู่ให้อัปเดตราคา
+      document.getElementById('displayEco').textContent = fuelEco + ' กม./ล.';
+      // อัปเดต selectedFuel แบบ silent (ไม่ clearResult ไม่ reset UI)
       if (selectedFuel) {
         const updated = fuelTypes.find(f => f.id === selectedFuel.id);
-        if (updated) selectFuel(updated);
+        if (updated) {
+          selectedFuel = updated;
+          document.getElementById('selectedFuelName').textContent  = updated.name;
+          document.getElementById('selectedFuelPrice').textContent = updated.price.toFixed(2);
+          document.getElementById('selectedPriceRow').style.display = 'flex';
+        } else {
+          // ประเภทที่เลือกถูกลบไปแล้ว
+          selectedFuel = null;
+          document.getElementById('selectedPriceRow').style.display = 'none';
+        }
       }
-      document.getElementById('displayEco').textContent = fuelEco + ' กม./ล.';
       renderChips();
       lastSyncTs = Date.now();
       setSyncStatus('ok','ซิงค์ล่าสุด ' + timeAgo(lastSyncTs));
