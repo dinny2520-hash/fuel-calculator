@@ -276,9 +276,7 @@
     </div>
 
     <!-- FUEL TYPE CHIPS -->
-    <div class="fuel-type-scroll" id="fuelChips">
-      <div style="color:var(--muted);font-size:13px;padding:6px 4px;font-style:italic;">⏳ กำลังโหลด...</div>
-    </div>
+    <div class="fuel-type-scroll" id="fuelChips"></div>
 
     <!-- SELECTED FUEL PRICE -->
     <div class="selected-price-row" id="selectedPriceRow" style="display:none;">
@@ -434,11 +432,13 @@ let lastSyncTs   = 0;
 // ═══════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════
-async function init() {
+function init() {
   document.getElementById('distanceInput').addEventListener('keydown', e => { if(e.key==='Enter') calculate(); });
   document.getElementById('distanceInput').addEventListener('input', clearResult);
-  // รอ fetch เสร็จก่อน — เครื่องใหม่จะได้ราคาจริงจาก Sheets เลย ไม่เห็น default
-  await fetchConfig();
+  // render จาก cache ก่อนเลย — ไม่มีหน้าโหลดค้าง
+  renderChips();
+  // fetch ใน background แล้วค่อย update (stale-while-revalidate)
+  fetchConfig();
   startAutoSync();
 }
 
@@ -648,25 +648,75 @@ function renderAdminFuelList() {
   const list = document.getElementById('adminFuelList');
   list.innerHTML = '';
   fuelTypes.forEach((f,i) => {
-    const row = document.createElement('div');
-    row.className = 'fuel-type-row';
-    row.innerHTML = `
-      <span class="fuel-type-row-name">${f.name}</span>
-      <input type="number" value="${f.price.toFixed(2)}" min="0" step="0.01"
-        style="width:84px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--fuel-amber);outline:none;text-align:right;"
-        oninput="updateFuelPrice(${i}, this.value)">
-      <span style="font-size:11px;color:var(--muted);margin-right:4px;">฿/ล.</span>
-      <div class="delete-btn" onclick="deleteFuelType(${i})" title="ลบ">🗑️</div>
+    const card = document.createElement('div');
+    card.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:13px;padding:12px 14px;margin-bottom:8px;';
+    card.innerHTML = `
+      <!-- ชื่อ + ปุ่มลบ -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:14px;font-weight:700;">${f.name}</span>
+        <div class="delete-btn" onclick="deleteFuelType(${i})" title="ลบ">🗑️</div>
+      </div>
+      <!-- ราคาปัจจุบัน -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">ราคาปัจจุบัน</span>
+        <input type="number" id="price_${i}" value="${f.price.toFixed(2)}" min="0" step="0.01"
+          style="flex:1;min-width:0;background:rgba(255,179,71,0.1);border:1.5px solid rgba(255,179,71,0.4);border-radius:8px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:var(--fuel-amber);outline:none;text-align:right;"
+          oninput="updateFuelPrice(${i}, this.value)">
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap;">฿/ลิตร</span>
+      </div>
+      <!-- ปรับราคา +/- -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">⚡ ปรับราคา</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="adj_${i}" placeholder="0.00" step="0.01"
+            style="flex:1;min-width:0;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;color:var(--white);outline:none;text-align:center;"
+            oninput="previewAdj(${i})">
+          <button onclick="applyAdj(${i}, 1)"
+            style="flex:1;padding:8px 4px;background:linear-gradient(135deg,rgba(78,205,196,0.25),rgba(78,205,196,0.15));border:1px solid rgba(78,205,196,0.4);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:800;color:#4ECDC4;cursor:pointer;white-space:nowrap;">
+            ▲ เพิ่ม
+          </button>
+          <button onclick="applyAdj(${i}, -1)"
+            style="flex:1;padding:8px 4px;background:linear-gradient(135deg,rgba(255,107,26,0.25),rgba(255,107,26,0.15));border:1px solid rgba(255,107,26,0.4);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:800;color:#FF8C42;cursor:pointer;white-space:nowrap;">
+            ▼ ลด
+          </button>
+        </div>
+        <div id="preview_${i}" style="margin-top:6px;font-size:12px;color:var(--muted);text-align:center;min-height:16px;"></div>
+      </div>
     `;
-    list.appendChild(row);
+    list.appendChild(card);
   });
-  // ปุ่มบันทึกราคาทั้งหมด
-  const saveRow = document.createElement('button');
-  saveRow.className = 'save-btn';
-  saveRow.style.marginTop = '4px';
-  saveRow.innerHTML = '💾 บันทึกราคาทั้งหมด';
-  saveRow.onclick = saveFuelTypes;
-  list.appendChild(saveRow);
+  // ปุ่มบันทึกทั้งหมด
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'save-btn';
+  saveBtn.style.marginTop = '4px';
+  saveBtn.innerHTML = '💾 บันทึกราคาทั้งหมด';
+  saveBtn.onclick = saveFuelTypes;
+  list.appendChild(saveBtn);
+}
+
+function previewAdj(idx) {
+  const adjVal = parseFloat(document.getElementById('adj_' + idx).value);
+  const cur    = fuelTypes[idx].price;
+  const prev   = document.getElementById('preview_' + idx);
+  if (!adjVal || isNaN(adjVal)) { prev.textContent = ''; return; }
+  const newPrice = Math.max(0, cur + adjVal);
+  const sign = adjVal > 0 ? '+' : '';
+  prev.innerHTML = `${cur.toFixed(2)} ${adjVal > 0 ? '<span style="color:#4ECDC4">▲</span>' : '<span style="color:#FF8C42">▼</span>'} ${sign}${adjVal.toFixed(2)} = <strong style="color:var(--white)">${newPrice.toFixed(2)} ฿</strong>`;
+}
+
+function applyAdj(idx, sign) {
+  const adjInput = document.getElementById('adj_' + idx);
+  const adjVal   = parseFloat(adjInput.value);
+  if (!adjVal || isNaN(adjVal) || adjVal <= 0) {
+    showToast('❌ กรอกจำนวนที่ต้องการปรับ', 'error'); return;
+  }
+  const newPrice = Math.max(0, fuelTypes[idx].price + (sign * adjVal));
+  fuelTypes[idx].price = Math.round(newPrice * 100) / 100;
+  // อัปเดต input ราคาปัจจุบัน
+  document.getElementById('price_' + idx).value = fuelTypes[idx].price.toFixed(2);
+  adjInput.value = '';
+  document.getElementById('preview_' + idx).textContent = '';
+  showToast('✅ ปรับราคา ' + fuelTypes[idx].name + ' → ' + fuelTypes[idx].price.toFixed(2) + ' ฿');
 }
 
 function updateFuelPrice(idx, val) {
