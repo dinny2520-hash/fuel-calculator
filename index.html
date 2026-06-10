@@ -291,12 +291,6 @@
 
 <!-- MAIN -->
 <div class="main">
-
-  <div class="setup-banner" id="setupBanner">
-    ⚠️ <strong>ยังไม่ได้ตั้งค่า Apps Script URL</strong><br>
-    กดปุ่ม ⚙️ → ใส่ URL ของ Google Apps Script ก่อนใช้งาน
-  </div>
-
   <!-- RESULT -->
   <div style="margin-top:4px;">
     <div class="result-card">
@@ -358,12 +352,6 @@
     <div class="modal-handle"></div>
     <div class="modal-title">⚙️ ตั้งค่าระบบ</div>
     <div class="modal-subtitle">ซิงค์ผ่าน Google Sheets · ทุกเครื่องเห็นเหมือนกัน</div>
-
-    <!-- URL -->
-    <div id="urlSection">
-      <div class="setting-label">🔗 Google Apps Script URL</div>
-      <input type="text" class="setting-input sm" id="scriptUrl" placeholder="https://script.google.com/macros/s/...">
-      <button class="save-btn" onclick="saveUrl()">✅ บันทึก URL</button>
       <div class="divider"></div>
     </div>
 
@@ -375,13 +363,6 @@
     <!-- SETTINGS FORM -->
     <div class="pin-section" id="settingsForm">
       <div class="divider"></div>
-
-      <!-- แก้ไข URL -->
-      <button class="secondary-btn" style="font-size:13px;padding:10px;margin-bottom:14px;color:var(--muted);"
-        onclick="document.getElementById('urlSection').style.display='block';document.getElementById('scriptUrl').focus();">
-        🔗 แก้ไข Apps Script URL
-      </button>
-
       <!-- อัตราสิ้นเปลือง -->
       <div class="setting-label">🚗 อัตราสิ้นเปลือง (กม./ลิตร)</div>
       <input type="number" class="setting-input" id="adminEco" placeholder="12" step="0.1" min="1">
@@ -427,7 +408,6 @@
 // ═══════════════════════════════════════════
 //  CONFIG & STATE
 // ═══════════════════════════════════════════
-const STORAGE_URL_KEY  = 'fuelCalc_scriptUrl';
 const SYNC_INTERVAL_MS = 10000;
 
 // ค่าเริ่มต้น — จะถูก overwrite จาก Sheets
@@ -444,7 +424,7 @@ const DEFAULT_FUELS = [
 let fuelTypes    = JSON.parse(JSON.stringify(DEFAULT_FUELS));
 let fuelEco      = 12;
 let adminPin     = '1234';
-let scriptUrl    = localStorage.getItem(STORAGE_URL_KEY) || '';
+const scriptUrl  = 'https://script.google.com/macros/s/AKfycbyMIn-ELsUYthDWIDWDB-WXTcbovAJH6mOKTSerQmv7T-3INH_XUiPNfmoaye1d7NB1/exec';
 let selectedFuel = null;   // { id, name, price }
 let syncTimer    = null;
 let lastSyncTs   = 0;
@@ -454,13 +434,8 @@ let lastSyncTs   = 0;
 // ═══════════════════════════════════════════
 function init() {
   document.getElementById('scriptUrl').value = scriptUrl;
-  if (!scriptUrl) {
-    document.getElementById('setupBanner').classList.add('show');
-    setSyncStatus('error','⚠️ ยังไม่ตั้งค่า URL');
-  } else {
-    fetchConfig();
-    startAutoSync();
-  }
+  fetchConfig();
+  startAutoSync();
   document.getElementById('distanceInput').addEventListener('keydown', e => { if(e.key==='Enter') calculate(); });
   document.getElementById('distanceInput').addEventListener('input', clearResult);
 }
@@ -623,24 +598,11 @@ async function openSettings() {
   document.getElementById('settingsModal').classList.add('open');
   document.getElementById('adminPin').value = '';
   document.getElementById('settingsForm').classList.remove('open');
-  document.getElementById('scriptUrl').value = scriptUrl;
-  // ซ่อน URL section ถ้ามี URL อยู่แล้ว — แสดงเฉพาะตอนยังไม่ได้ตั้งค่า
-  document.getElementById('urlSection').style.display = scriptUrl ? 'none' : 'block';
   if (scriptUrl) await fetchConfig(true);
 }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
 function closeIfOverlay(e) { if(e.target===document.getElementById('settingsModal')) closeSettings(); }
 
-function saveUrl() {
-  const url = document.getElementById('scriptUrl').value.trim();
-  if (!url.startsWith('https://')) { showToast('❌ URL ไม่ถูกต้อง','error'); return; }
-  scriptUrl = url;
-  localStorage.setItem(STORAGE_URL_KEY, scriptUrl);
-  document.getElementById('setupBanner').classList.remove('show');
-  document.getElementById('urlSection').style.display = 'none';
-  fetchConfig(); startAutoSync();
-  showToast('✅ บันทึก URL เรียบร้อย');
-}
 
 async function verifyAdmin() {
   const pin = document.getElementById('adminPin').value;
