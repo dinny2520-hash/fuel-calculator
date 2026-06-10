@@ -575,11 +575,13 @@ function shakeInput() {
 // ═══════════════════════════════════════════
 //  SETTINGS MODAL
 // ═══════════════════════════════════════════
-function openSettings() {
+async function openSettings() {
   document.getElementById('settingsModal').classList.add('open');
   document.getElementById('adminPin').value = '';
   document.getElementById('settingsForm').classList.remove('open');
   document.getElementById('scriptUrl').value = scriptUrl;
+  // ดึงข้อมูลล่าสุดจาก Sheets ก่อนเสมอ เพื่อให้แอดมินเห็นราคาปัจจุบัน
+  if (scriptUrl) await fetchConfig(true);
 }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
 function closeIfOverlay(e) { if(e.target===document.getElementById('settingsModal')) closeSettings(); }
@@ -594,9 +596,11 @@ function saveUrl() {
   showToast('✅ บันทึก URL เรียบร้อย');
 }
 
-function verifyAdmin() {
+async function verifyAdmin() {
   const pin = document.getElementById('adminPin').value;
   if (pin === adminPin) {
+    // fetch ล่าสุดก่อนแสดง form เพื่อให้ราคาตรงกับ Sheets จริงๆ
+    if (scriptUrl) await fetchConfig(true);
     document.getElementById('settingsForm').classList.add('open');
     document.getElementById('adminEco').value   = fuelEco;
     document.getElementById('newPin').value     = '';
@@ -632,14 +636,21 @@ function renderAdminFuelList() {
     row.className = 'fuel-type-row';
     row.innerHTML = `
       <span class="fuel-type-row-name">${f.name}</span>
-      <input type="number" value="${f.price}" min="0" step="0.01"
-        style="width:80px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--fuel-amber);outline:none;text-align:right;"
-        onchange="updateFuelPrice(${i}, this.value)">
+      <input type="number" value="${f.price.toFixed(2)}" min="0" step="0.01"
+        style="width:84px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--fuel-amber);outline:none;text-align:right;"
+        oninput="updateFuelPrice(${i}, this.value)">
       <span style="font-size:11px;color:var(--muted);margin-right:4px;">฿/ล.</span>
       <div class="delete-btn" onclick="deleteFuelType(${i})" title="ลบ">🗑️</div>
     `;
     list.appendChild(row);
   });
+  // ปุ่มบันทึกราคาทั้งหมด
+  const saveRow = document.createElement('button');
+  saveRow.className = 'save-btn';
+  saveRow.style.marginTop = '4px';
+  saveRow.innerHTML = '💾 บันทึกราคาทั้งหมด';
+  saveRow.onclick = saveFuelTypes;
+  list.appendChild(saveRow);
 }
 
 function updateFuelPrice(idx, val) {
