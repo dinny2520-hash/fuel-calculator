@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⛽ คำนวณค่าน้ำมัน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fuel-orange: #FF6B1A;
+    --fuel-amber:  #FFB347;
+    --fuel-yellow: #FFE066;
+    --navy:        #0D1B2A;
+    --navy-mid:    #1B2E42;
+    --navy-soft:   #243B55;
+    --white:       #FFFFFF;
+    --muted:       #8FAACC;
+    --card-bg:     rgba(255,255,255,0.06);
+    --card-border: rgba(255,255,255,0.12);
+    --success:     #4ECDC4;
+    --danger:      #FF4444;
+    --radius:      16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: linear-gradient(145deg, #0D1B2A 0%, #1B2E42 50%, #0D1B2A 100%);
+    min-height: 100vh;
+    color: var(--white);
+    padding: 0 0 80px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, var(--fuel-orange), var(--fuel-amber));
+    padding: 24px 20px 32px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom-left-radius: 28px;
+    border-bottom-right-radius: 28px;
+    box-shadow: 0 8px 32px rgba(255,107,26,0.4);
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -30px; left: -30px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+  }
+  .header-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 4px;
+  }
+  .header-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  /* ── SYNC INDICATOR ── */
+  .sync-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    margin-right: 5px;
+    vertical-align: middle;
+    animation: pulse 2s infinite;
+  }
+  .sync-dot.error { background: var(--danger); animation: none; }
+  .sync-dot.loading { background: var(--fuel-amber); }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+  }
+
+  /* ── PRICE BANNER ── */
+  .price-banner {
+    margin: -16px 20px 0;
+    background: var(--navy-mid);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 10;
+  }
+  .price-banner-left { display: flex; align-items: center; gap: 12px; }
+  .fuel-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--fuel-orange), var(--fuel-amber));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .price-label {
+    font-size: 11px; color: var(--muted); font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px;
+  }
+  .price-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px; font-weight: 700; color: var(--fuel-amber); line-height: 1;
+  }
+  .price-unit { font-size: 13px; color: var(--muted); margin-left: 4px; }
+  .price-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── MAIN ── */
+  .main {
+    padding: 20px 20px 0;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(8px);
+  }
+  .card-title {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px;
+  }
+
+  /* ── INPUT ── */
+  .input-group { position: relative; }
+  .big-input {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 16px 70px 16px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px; font-weight: 700; color: var(--white);
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    -webkit-appearance: none;
+  }
+  .big-input:focus {
+    border-color: var(--fuel-orange);
+    background: rgba(255,107,26,0.08);
+  }
+  .big-input::placeholder { color: rgba(255,255,255,0.2); font-size: 20px; }
+  .input-suffix {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; font-weight: 600; color: var(--muted);
+  }
+
+  /* ── RESULT ── */
+  .result-card {
+    background: linear-gradient(135deg, rgba(255,107,26,0.15), rgba(255,179,71,0.10));
+    border: 2px solid rgba(255,107,26,0.4);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    margin-bottom: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-card::before {
+    content: '⛽';
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    font-size: 48px; opacity: 0.12;
+  }
+  .result-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    color: var(--fuel-amber); text-transform: uppercase; margin-bottom: 8px;
+  }
+  .result-amount {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 54px; font-weight: 700; color: var(--white);
+    line-height: 1; letter-spacing: -2px; transition: transform 0.2s;
+  }
+  .result-amount.pop { animation: pop 0.25s ease; }
+  @keyframes pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .result-unit { font-size: 18px; color: var(--fuel-amber); font-weight: 600; margin-top: 4px; }
+  .result-breakdown { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.8; }
+  .result-empty { font-size: 18px; color: rgba(255,255,255,0.2); padding: 12px 0; }
+
+  /* ── CALC BUTTON ── */
+  .calc-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--fuel-orange), var(--fuel-amber));
+    border: none; border-radius: 12px; padding: 18px;
+    font-family: 'Sarabun', sans-serif; font-size: 18px; font-weight: 800;
+    color: var(--navy); cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    box-shadow: 0 6px 20px rgba(255,107,26,0.4);
+    margin-bottom: 16px; letter-spacing: 0.5px;
+  }
+  .calc-btn:active { transform: scale(0.98); opacity: 0.9; }
+
+  /* ── QUICK KM ── */
+  .quick-km { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .quick-btn {
+    flex: 1; min-width: 60px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; padding: 10px 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .quick-btn:hover, .quick-btn.active {
+    background: rgba(255,107,26,0.2);
+    border-color: var(--fuel-orange);
+    color: var(--fuel-amber);
+  }
+
+  /* ── INFO ROW ── */
+  .info-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .info-chip {
+    flex: 1; background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 12px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .info-chip-icon { font-size: 18px; }
+  .info-chip-label {
+    font-size: 10px; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .info-chip-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px; font-weight: 700; color: var(--white);
+  }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet {
+    background: var(--navy-mid);
+    border: 1px solid var(--card-border);
+    border-top-left-radius: 24px; border-top-right-radius: 24px;
+    padding: 28px 24px 40px;
+    width: 100%; max-width: 480px;
+    animation: slideUp 0.25s ease;
+    max-height: 92vh; overflow-y: auto;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .modal-handle {
+    width: 40px; height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px; margin: 0 auto 20px;
+  }
+  .modal-title  { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+  .modal-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  .setting-label {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .setting-input {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px; padding: 14px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px; font-weight: 700; color: var(--white);
+    outline: none; margin-bottom: 20px;
+    transition: border-color 0.2s;
+  }
+  .setting-input:focus { border-color: var(--fuel-orange); }
+  .setting-input.sm { font-size: 16px; }
+
+  .save-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--fuel-orange), var(--fuel-amber));
+    border: none; border-radius: 12px; padding: 16px;
+    font-family: 'Sarabun', sans-serif; font-size: 17px; font-weight: 800;
+    color: var(--navy); cursor: pointer; margin-bottom: 10px;
+  }
+  .secondary-btn {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--card-border);
+    border-radius: 12px; padding: 14px;
+    font-family: 'Sarabun', sans-serif; font-size: 16px; font-weight: 600;
+    color: var(--white); cursor: pointer; margin-bottom: 10px;
+    transition: background 0.15s;
+  }
+  .secondary-btn:hover { background: rgba(255,255,255,0.1); }
+  .cancel-btn {
+    width: 100%; background: transparent;
+    border: 1px solid var(--card-border); border-radius: 12px; padding: 14px;
+    font-family: 'Sarabun', sans-serif; font-size: 16px; font-weight: 600;
+    color: var(--muted); cursor: pointer;
+  }
+
+  /* ── PIN SECTION ── */
+  .pin-section { display: none; margin-top: 4px; }
+  .pin-section.open { display: block; }
+  .pin-change-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 16px; margin-bottom: 16px;
+  }
+  .pin-change-title {
+    font-size: 14px; font-weight: 700; color: var(--fuel-amber); margin-bottom: 12px;
+  }
+
+  /* ── FAB ── */
+  .settings-fab {
+    position: fixed; bottom: 24px; right: 20px;
+    width: 52px; height: 52px;
+    background: var(--navy-mid);
+    border: 1px solid var(--card-border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: background 0.2s; z-index: 90;
+  }
+  .settings-fab:hover { background: rgba(255,107,26,0.2); }
+
+  /* ── NOTE TAG ── */
+  .note-tag {
+    display: inline-block;
+    background: rgba(255,224,102,0.12);
+    border: 1px solid rgba(255,224,102,0.25);
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 11px; font-weight: 700; color: var(--fuel-yellow);
+    letter-spacing: 0.5px; margin-top: 10px;
+  }
+  .divider { height: 1px; background: var(--card-border); margin: 16px 0; }
+
+  /* ── SETUP BANNER ── */
+  .setup-banner {
+    background: rgba(255,107,26,0.12);
+    border: 1px solid rgba(255,107,26,0.35);
+    border-radius: 12px; padding: 14px 16px;
+    font-size: 13px; color: var(--fuel-amber);
+    line-height: 1.6; margin-bottom: 16px; display: none;
+  }
+  .setup-banner.show { display: block; }
+  .setup-banner strong { color: var(--white); }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-label">เครื่องมือประหยัดงบ</div>
+  <div class="header-title">⛽ คำนวณค่าน้ำมัน</div>
+</div>
+
+<!-- PRICE BANNER -->
+<div style="max-width:480px;margin:0 auto;padding:0 20px;">
+  <div class="price-banner">
+    <div class="price-banner-left">
+      <div class="fuel-icon">⛽</div>
+      <div>
+        <div class="price-label">ราคาน้ำมันวันนี้</div>
+        <div>
+          <span class="price-value" id="displayPrice">--</span>
+          <span class="price-unit">บาท/ลิตร</span>
+        </div>
+        <div class="price-date" id="priceDate">
+          <span class="sync-dot loading" id="syncDot"></span>
+          <span id="syncText">กำลังโหลด...</span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:2px;">อัตราสิ้นเปลือง</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:var(--success);" id="displayEco">--</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SETUP BANNER -->
+  <div class="setup-banner" id="setupBanner">
+    ⚠️ <strong>ยังไม่ได้ตั้งค่า Apps Script URL</strong><br>
+    กดปุ่ม ⚙️ → ใส่ URL ของ Google Apps Script ก่อนใช้งาน
+  </div>
+
+  <!-- RESULT CARD -->
+  <div style="margin-top:4px;">
+    <div class="result-card">
+      <div class="result-label">💰 ค่าน้ำมันที่ต้องจ่าย</div>
+      <div class="result-amount" id="resultAmount">—</div>
+      <div class="result-unit" id="resultUnit" style="display:none;">บาท</div>
+      <div class="result-breakdown" id="resultBreakdown"></div>
+      <div class="result-empty" id="resultEmpty">กรอกระยะทางแล้วกดคำนวณ</div>
+    </div>
+  </div>
+
+  <!-- INPUT CARD -->
+  <div class="card">
+    <div class="card-title">📍 ระยะทางที่เดินทาง</div>
+    <div class="input-group">
+      <input type="number" class="big-input" id="distanceInput"
+        placeholder="0" min="0" step="1" inputmode="numeric">
+      <span class="input-suffix">กม.</span>
+    </div>
+    <div class="quick-km">
+      <button class="quick-btn" onclick="setKm(10,this)">10</button>
+      <button class="quick-btn" onclick="setKm(20,this)">20</button>
+      <button class="quick-btn" onclick="setKm(50,this)">50</button>
+      <button class="quick-btn" onclick="setKm(100,this)">100</button>
+      <button class="quick-btn" onclick="setKm(150,this)">150</button>
+      <button class="quick-btn" onclick="setKm(200,this)">200</button>
+    </div>
+  </div>
+
+  <!-- CALC BTN -->
+  <button class="calc-btn" onclick="calculate()">⚡ คำนวณค่าน้ำมัน</button>
+
+  <!-- INFO ROW -->
+  <div class="info-row">
+    <div class="info-chip">
+      <div class="info-chip-icon">💧</div>
+      <div>
+        <div class="info-chip-label">ปริมาณน้ำมัน</div>
+        <div class="info-chip-val" id="litersUsed">-- ลิตร</div>
+      </div>
+    </div>
+    <div class="info-chip">
+      <div class="info-chip-icon">🔢</div>
+      <div>
+        <div class="info-chip-label">ราคาต่อ กม.</div>
+        <div class="info-chip-val" id="costPerKm">-- บาท</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;">
+    <span class="note-tag">🔼 ปัดขึ้นเป็นหลักสิบเสมอ เช่น 155 → 160 บาท</span>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<div class="settings-fab" onclick="openSettings()">⚙️</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="closeIfOverlay(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚙️ ตั้งค่าระบบ</div>
+    <div class="modal-subtitle">ซิงค์ผ่าน Google Sheets · ทุกเครื่องเห็นเหมือนกัน</div>
+
+    <!-- STEP 1: URL (เฉพาะครั้งแรก / แก้ URL) -->
+    <div id="urlSection">
+      <div class="setting-label">🔗 Google Apps Script URL</div>
+      <input type="text" class="setting-input sm" id="scriptUrl"
+        placeholder="https://script.google.com/macros/s/..." style="font-size:13px;padding:12px 14px;">
+      <button class="save-btn" onclick="saveUrl()">✅ บันทึก URL</button>
+      <div class="divider"></div>
+    </div>
+
+    <!-- STEP 2: PIN -->
+    <div class="setting-label">🔑 รหัสผ่านแอดมิน</div>
+    <input type="password" class="setting-input" id="adminPin"
+      placeholder="••••" style="font-size:18px;"
+      onkeydown="if(event.key==='Enter') verifyAdmin()">
+    <button class="save-btn" onclick="verifyAdmin()">🔓 ยืนยันรหัส</button>
+
+    <!-- STEP 3: SETTINGS FORM (หลัง login) -->
+    <div class="pin-section" id="settingsForm">
+      <div class="divider"></div>
+
+      <div class="setting-label">⛽ ราคาน้ำมัน (บาท/ลิตร)</div>
+      <input type="number" class="setting-input" id="adminPrice" placeholder="42.50" step="0.01" min="0">
+
+      <div class="setting-label">🚗 อัตราสิ้นเปลือง (กม./ลิตร)</div>
+      <input type="number" class="setting-input" id="adminEco" placeholder="12" step="0.1" min="1">
+
+      <button class="save-btn" onclick="saveSettings()">💾 บันทึกราคา & อัตราสิ้นเปลือง</button>
+
+      <!-- เปลี่ยนรหัสผ่าน -->
+      <div class="pin-change-box">
+        <div class="pin-change-title">🔐 เปลี่ยนรหัสผ่านแอดมิน</div>
+        <div class="setting-label">รหัสใหม่</div>
+        <input type="password" class="setting-input sm" id="newPin" placeholder="กรอกรหัสใหม่" style="margin-bottom:10px;">
+        <div class="setting-label">ยืนยันรหัสใหม่</div>
+        <input type="password" class="setting-input sm" id="confirmPin" placeholder="กรอกรหัสอีกครั้ง" style="margin-bottom:10px;">
+        <button class="secondary-btn" onclick="changePin()">🔄 เปลี่ยนรหัสผ่าน</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <button class="cancel-btn" onclick="closeSettings()">ปิด</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════
+const STORAGE_URL_KEY  = 'fuelCalc_scriptUrl';
+const SYNC_INTERVAL_MS = 10000; // 10 วินาที
+
+let fuelPrice  = 42.50;
+let fuelEco    = 12;
+let adminPin   = '1234';
+let scriptUrl  = localStorage.getItem(STORAGE_URL_KEY) || '';
+let syncTimer  = null;
+let lastSyncTs = 0;
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+function init() {
+  // แสดง URL ในช่อง input ถ้ามีอยู่แล้ว
+  document.getElementById('scriptUrl').value = scriptUrl;
+
+  if (!scriptUrl) {
+    document.getElementById('setupBanner').classList.add('show');
+    setSyncStatus('error', '⚠️ ยังไม่ตั้งค่า URL');
+  } else {
+    fetchConfig();
+    startAutoSync();
+  }
+
+  document.getElementById('distanceInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') calculate();
+  });
+  document.getElementById('distanceInput').addEventListener('input', clearResult);
+}
+
+// ═══════════════════════════════════════════
+//  GOOGLE SHEETS SYNC
+// ═══════════════════════════════════════════
+async function fetchConfig(silent = false) {
+  if (!scriptUrl) return;
+  if (!silent) setSyncStatus('loading', 'กำลังซิงค์...');
+
+  try {
+    const res  = await fetch(scriptUrl + '?t=' + Date.now());
+    const json = await res.json();
+    if (json.status === 'ok') {
+      const d = json.data;
+      fuelPrice = parseFloat(d.fuelPrice) || fuelPrice;
+      fuelEco   = parseFloat(d.fuelEco)   || fuelEco;
+      adminPin  = d.adminPin               || adminPin;
+      updateDisplay();
+      lastSyncTs = Date.now();
+      setSyncStatus('ok', 'ซิงค์ล่าสุด ' + timeAgo(lastSyncTs));
+    } else {
+      setSyncStatus('error', '❌ ซิงค์ไม่สำเร็จ');
+    }
+  } catch(e) {
+    setSyncStatus('error', '❌ เชื่อมต่อไม่ได้');
+  }
+}
+
+async function postConfig(payload) {
+  if (!scriptUrl) return false;
+  try {
+    const res  = await fetch(scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    return json.status === 'ok';
+  } catch(e) {
+    return false;
+  }
+}
+
+function startAutoSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(() => {
+    fetchConfig(true);
+    if (lastSyncTs) {
+      setSyncStatus('ok', 'ซิงค์ล่าสุด ' + timeAgo(lastSyncTs));
+    }
+  }, SYNC_INTERVAL_MS);
+}
+
+function setSyncStatus(state, text) {
+  const dot  = document.getElementById('syncDot');
+  const span = document.getElementById('syncText');
+  dot.className  = 'sync-dot ' + state;
+  span.textContent = text;
+}
+
+function timeAgo(ts) {
+  const sec = Math.round((Date.now() - ts) / 1000);
+  if (sec < 5)  return 'เมื่อกี้';
+  if (sec < 60) return sec + ' วินาทีที่แล้ว';
+  return Math.round(sec/60) + ' นาทีที่แล้ว';
+}
+
+function updateDisplay() {
+  document.getElementById('displayPrice').textContent = fuelPrice.toFixed(2);
+  document.getElementById('displayEco').textContent   = fuelEco + ' กม./ล.';
+}
+
+// ═══════════════════════════════════════════
+//  CALCULATOR
+// ═══════════════════════════════════════════
+function setKm(v, btn) {
+  document.getElementById('distanceInput').value = v;
+  document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  clearResult();
+}
+
+function clearResult() {
+  document.getElementById('resultAmount').textContent  = '—';
+  document.getElementById('resultUnit').style.display  = 'none';
+  document.getElementById('resultBreakdown').textContent = '';
+  document.getElementById('resultEmpty').textContent   = 'กรอกระยะทางแล้วกดคำนวณ';
+  document.getElementById('litersUsed').textContent    = '-- ลิตร';
+  document.getElementById('costPerKm').textContent     = '-- บาท';
+  document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+}
+
+function calculate() {
+  const km = parseFloat(document.getElementById('distanceInput').value);
+  if (!km || km <= 0) { shakeInput(); return; }
+
+  const liters      = km / fuelEco;
+  const rawCost     = liters * fuelPrice;
+  const roundedCost = Math.ceil(rawCost / 10) * 10;
+  const costPerKm   = fuelPrice / fuelEco;
+
+  const el = document.getElementById('resultAmount');
+  el.textContent = roundedCost.toLocaleString('th-TH');
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+
+  document.getElementById('resultUnit').style.display  = 'block';
+  document.getElementById('resultEmpty').textContent   = '';
+  document.getElementById('resultBreakdown').innerHTML =
+    `ระยะทาง <strong>${km.toLocaleString('th-TH')}</strong> กม. &nbsp;·&nbsp; ` +
+    `ใช้น้ำมัน <strong>${liters.toFixed(2)}</strong> ลิตร &nbsp;·&nbsp; ` +
+    `ราคาจริง <strong>${rawCost.toFixed(2)}</strong> บาท → ปัดขึ้น`;
+
+  document.getElementById('litersUsed').textContent = liters.toFixed(2) + ' ลิตร';
+  document.getElementById('costPerKm').textContent  = costPerKm.toFixed(2) + ' บาท';
+}
+
+function shakeInput() {
+  const inp = document.getElementById('distanceInput');
+  inp.style.borderColor = '#FF4444';
+  inp.style.animation   = 'shake 0.3s ease';
+  inp.placeholder = 'กรุณากรอกระยะทาง!';
+  setTimeout(() => {
+    inp.style.borderColor = '';
+    inp.style.animation   = '';
+    inp.placeholder       = '0';
+  }, 1000);
+}
+
+// ═══════════════════════════════════════════
+//  SETTINGS MODAL
+// ═══════════════════════════════════════════
+function openSettings() {
+  document.getElementById('settingsModal').classList.add('open');
+  document.getElementById('adminPin').value = '';
+  document.getElementById('settingsForm').classList.remove('open');
+  document.getElementById('scriptUrl').value = scriptUrl;
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+
+function closeIfOverlay(e) {
+  if (e.target === document.getElementById('settingsModal')) closeSettings();
+}
+
+function saveUrl() {
+  const url = document.getElementById('scriptUrl').value.trim();
+  if (!url.startsWith('https://')) {
+    showToast('❌ URL ไม่ถูกต้อง', 'error'); return;
+  }
+  scriptUrl = url;
+  localStorage.setItem(STORAGE_URL_KEY, scriptUrl);
+  document.getElementById('setupBanner').classList.remove('show');
+  fetchConfig();
+  startAutoSync();
+  showToast('✅ บันทึก URL เรียบร้อย');
+}
+
+function verifyAdmin() {
+  const pin = document.getElementById('adminPin').value;
+  if (pin === adminPin) {
+    document.getElementById('settingsForm').classList.add('open');
+    document.getElementById('adminPrice').value = fuelPrice;
+    document.getElementById('adminEco').value   = fuelEco;
+    document.getElementById('newPin').value     = '';
+    document.getElementById('confirmPin').value = '';
+  } else {
+    const inp = document.getElementById('adminPin');
+    inp.style.borderColor = '#FF4444';
+    inp.value       = '';
+    inp.placeholder = 'รหัสผิด ลองใหม่อีกครั้ง';
+    setTimeout(() => {
+      inp.style.borderColor = '';
+      inp.placeholder       = '••••';
+    }, 1500);
+  }
+}
+
+async function saveSettings() {
+  const newPrice = parseFloat(document.getElementById('adminPrice').value);
+  const newEco   = parseFloat(document.getElementById('adminEco').value);
+
+  if (!newPrice || newPrice <= 0 || !newEco || newEco <= 0) {
+    showToast('❌ กรุณากรอกข้อมูลให้ครบ', 'error'); return;
+  }
+
+  showToast('⏳ กำลังบันทึก...');
+  const ok = await postConfig({ fuelPrice: newPrice, fuelEco: newEco });
+  if (ok) {
+    fuelPrice = newPrice;
+    fuelEco   = newEco;
+    updateDisplay();
+    clearResult();
+    closeSettings();
+    showToast('✅ บันทึกแล้ว ทุกเครื่องจะอัปเดตภายใน 10 วิ');
+  } else {
+    showToast('❌ บันทึกไม่สำเร็จ ลองใหม่', 'error');
+  }
+}
+
+async function changePin() {
+  const np  = document.getElementById('newPin').value.trim();
+  const cp  = document.getElementById('confirmPin').value.trim();
+
+  if (!np)         { showToast('❌ กรุณากรอกรหัสใหม่', 'error'); return; }
+  if (np.length < 4) { showToast('❌ รหัสต้องมีอย่างน้อย 4 ตัว', 'error'); return; }
+  if (np !== cp)   { showToast('❌ รหัสไม่ตรงกัน', 'error'); return; }
+
+  showToast('⏳ กำลังเปลี่ยนรหัส...');
+  const ok = await postConfig({ adminPin: np });
+  if (ok) {
+    adminPin = np;
+    document.getElementById('newPin').value     = '';
+    document.getElementById('confirmPin').value = '';
+    showToast('✅ เปลี่ยนรหัสผ่านเรียบร้อย');
+  } else {
+    showToast('❌ เปลี่ยนรหัสไม่สำเร็จ', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+let toastEl = null;
+function showToast(msg, type = 'ok') {
+  if (toastEl) toastEl.remove();
+  toastEl = document.createElement('div');
+  toastEl.textContent = msg;
+  toastEl.style.cssText = `
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+    background:${type === 'error' ? '#2A1010' : 'var(--navy-mid)'};
+    border:1px solid ${type === 'error' ? '#FF444455' : 'rgba(255,255,255,0.15)'};
+    border-radius:12px;padding:12px 24px;
+    font-family:'Sarabun',sans-serif;font-size:15px;font-weight:700;
+    color:#fff;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    z-index:999;white-space:nowrap;
+    animation:fadeInOut 2.8s ease forwards;
+  `;
+
+  if (!document.getElementById('toastStyle')) {
+    const s = document.createElement('style');
+    s.id = 'toastStyle';
+    s.textContent = `
+      @keyframes fadeInOut {
+        0%   { opacity:0; transform:translateX(-50%) translateY(10px); }
+        12%  { opacity:1; transform:translateX(-50%) translateY(0); }
+        78%  { opacity:1; }
+        100% { opacity:0; }
+      }
+      @keyframes shake {
+        0%,100% { transform:translateX(0); }
+        25%     { transform:translateX(-6px); }
+        75%     { transform:translateX(6px); }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  document.body.appendChild(toastEl);
+  setTimeout(() => { if (toastEl) { toastEl.remove(); toastEl = null; } }, 2900);
+}
+
+// ── START ──
+init();
+</script>
+</body>
+</html>
