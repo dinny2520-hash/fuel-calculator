@@ -338,6 +338,12 @@
     <div class="pin-section" id="settingsForm">
       <div class="divider"></div>
 
+      <!-- แก้ไข URL -->
+      <button class="secondary-btn" style="font-size:13px;padding:10px;margin-bottom:14px;color:var(--muted);"
+        onclick="document.getElementById('urlSection').style.display='block';document.getElementById('scriptUrl').focus();">
+        🔗 แก้ไข Apps Script URL
+      </button>
+
       <!-- อัตราสิ้นเปลือง -->
       <div class="setting-label">🚗 อัตราสิ้นเปลือง (กม./ลิตร)</div>
       <input type="number" class="setting-input" id="adminEco" placeholder="12" step="0.1" min="1">
@@ -580,7 +586,8 @@ async function openSettings() {
   document.getElementById('adminPin').value = '';
   document.getElementById('settingsForm').classList.remove('open');
   document.getElementById('scriptUrl').value = scriptUrl;
-  // ดึงข้อมูลล่าสุดจาก Sheets ก่อนเสมอ เพื่อให้แอดมินเห็นราคาปัจจุบัน
+  // ซ่อน URL section ถ้ามี URL อยู่แล้ว — แสดงเฉพาะตอนยังไม่ได้ตั้งค่า
+  document.getElementById('urlSection').style.display = scriptUrl ? 'none' : 'block';
   if (scriptUrl) await fetchConfig(true);
 }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
@@ -592,6 +599,7 @@ function saveUrl() {
   scriptUrl = url;
   localStorage.setItem(STORAGE_URL_KEY, scriptUrl);
   document.getElementById('setupBanner').classList.remove('show');
+  document.getElementById('urlSection').style.display = 'none';
   fetchConfig(); startAutoSync();
   showToast('✅ บันทึก URL เรียบร้อย');
 }
