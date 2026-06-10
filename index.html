@@ -276,7 +276,9 @@
     </div>
 
     <!-- FUEL TYPE CHIPS -->
-    <div class="fuel-type-scroll" id="fuelChips"></div>
+    <div class="fuel-type-scroll" id="fuelChips">
+      <div style="color:var(--muted);font-size:13px;padding:6px 4px;font-style:italic;">⏳ กำลังโหลด...</div>
+    </div>
 
     <!-- SELECTED FUEL PRICE -->
     <div class="selected-price-row" id="selectedPriceRow" style="display:none;">
@@ -432,12 +434,12 @@ let lastSyncTs   = 0;
 // ═══════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════
-function init() {
-  document.getElementById('scriptUrl').value = scriptUrl;
-  fetchConfig();
-  startAutoSync();
+async function init() {
   document.getElementById('distanceInput').addEventListener('keydown', e => { if(e.key==='Enter') calculate(); });
   document.getElementById('distanceInput').addEventListener('input', clearResult);
+  // รอ fetch เสร็จก่อน — เครื่องใหม่จะได้ราคาจริงจาก Sheets เลย ไม่เห็น default
+  await fetchConfig();
+  startAutoSync();
 }
 
 // ═══════════════════════════════════════════
@@ -507,6 +509,8 @@ async function fetchConfig(silent=false) {
     }
   } catch(e) {
     setSyncStatus('error','❌ เชื่อมต่อไม่ได้');
+    // render จาก cache ที่มีอยู่ (ถ้ามี) ไม่ให้ค้างที่ "กำลังโหลด..."
+    renderChips();
   }
 }
 
@@ -753,7 +757,6 @@ function showToast(msg, type='ok') {
 }
 
 // ── START ──
-renderChips();
 init();
 </script>
 </body>
