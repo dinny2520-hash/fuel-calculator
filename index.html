@@ -603,12 +603,18 @@ function shakeInput() {
 //  SETTINGS MODAL
 // ═══════════════════════════════════════════
 async function openSettings() {
+  // หยุด auto-sync ขณะเปิด Settings — ป้องกัน Sheets ดึงราคากลับมาทับ
+  if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
   document.getElementById('settingsModal').classList.add('open');
   document.getElementById('adminPin').value = '';
   document.getElementById('settingsForm').classList.remove('open');
   if (scriptUrl) await fetchConfig(true);
 }
-function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+  // resume auto-sync หลังปิด Settings
+  startAutoSync();
+}
 function closeIfOverlay(e) { if(e.target===document.getElementById('settingsModal')) closeSettings(); }
 
 
