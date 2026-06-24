@@ -100,27 +100,30 @@
   .price-unit  { font-size:12px; color:var(--muted); margin-left:3px; }
   .price-date  { font-size:10px; color:var(--muted); margin-top:2px; }
 
-  /* FUEL TYPE SELECTOR (inside banner) */
-  .fuel-type-scroll {
-    margin-top:12px; display:flex; gap:7px; overflow-x:auto;
-    padding-bottom:4px; scroll-snap-type:x mandatory;
-    -webkit-overflow-scrolling:touch;
+  /* FUEL TYPE SELECTOR — grid 2 col */
+  .fuel-type-grid {
+    margin-top:12px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
   }
-  .fuel-type-scroll::-webkit-scrollbar { height:3px; }
-  .fuel-type-scroll::-webkit-scrollbar-track { background:transparent; }
-  .fuel-type-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
   .fuel-chip {
-    flex-shrink:0; scroll-snap-align:start;
-    background:rgba(255,255,255,0.07); border:1.5px solid rgba(255,255,255,0.14);
-    border-radius:20px; padding:6px 14px;
-    font-family:'Sarabun',sans-serif; font-size:13px; font-weight:700;
-    color:var(--muted); cursor:pointer; white-space:nowrap;
+    background:rgba(255,255,255,0.07);
+    border:1.5px solid rgba(255,255,255,0.14);
+    border-radius:12px;
+    padding:12px 10px;
+    font-family:'Sarabun',sans-serif;
+    font-size:14px; font-weight:700;
+    color:var(--muted); cursor:pointer;
+    text-align:center; line-height:1.3;
     transition:all 0.15s; user-select:none;
+    display:flex; align-items:center; justify-content:center; gap:6px;
   }
-  .fuel-chip:hover  { border-color:var(--fuel-orange); color:var(--fuel-amber); }
+  .fuel-chip:active { transform:scale(0.96); }
   .fuel-chip.active {
-    background:linear-gradient(135deg,rgba(255,107,26,0.3),rgba(255,179,71,0.2));
+    background:linear-gradient(135deg,rgba(255,107,26,0.25),rgba(255,179,71,0.15));
     border-color:var(--fuel-orange); color:var(--white);
+    box-shadow:0 0 0 1px rgba(255,107,26,0.3);
   }
   .selected-price-row {
     margin-top:10px; display:flex; align-items:center; justify-content:space-between;
@@ -276,7 +279,7 @@
     </div>
 
     <!-- FUEL TYPE CHIPS -->
-    <div class="fuel-type-scroll" id="fuelChips"></div>
+    <div class="fuel-type-grid" id="fuelChips"></div>
 
     <!-- SELECTED FUEL PRICE -->
     <div class="selected-price-row" id="selectedPriceRow" style="display:none;">
@@ -410,13 +413,14 @@ const SYNC_INTERVAL_MS = 10000;
 
 // ค่าเริ่มต้น — จะถูก overwrite จาก Sheets
 const DEFAULT_FUELS = [
-  { id:'diesel',    name:'ดีเซล',              price:29.94 },
-  { id:'dieselb20', name:'ดีเซล B20',           price:28.44 },
-  { id:'dieselpre', name:'ดีเซลพรีเมียม',       price:32.94 },
-  { id:'e10',       name:'แก๊สโซฮอล์ 95',       price:35.96 },
-  { id:'e10pre',    name:'แก๊สโซฮอล์พรีเมียม',  price:40.04 },
-  { id:'e85',       name:'แก๊สโซฮอล์ E85',      price:21.29 },
-  { id:'e20',       name:'แก๊สโซฮอล์ E20',      price:33.34 },
+  { id:'diesel',    name:'ดีเซล',               price:29.94 },
+  { id:'dieselb20', name:'ดีเซล B20',            price:28.44 },
+  { id:'dieselpre', name:'ดีเซลพรีเมี่ยม',      price:32.94 },
+  { id:'e95',       name:'แก๊สโซฮอล์ 95',        price:35.96 },
+  { id:'e91',       name:'แก๊สโซฮอล์ 91',        price:34.36 },
+  { id:'e85',       name:'แก๊สโซฮอล์ E85',       price:21.29 },
+  { id:'e20',       name:'แก๊สโซฮอล์ E20',       price:33.34 },
+  { id:'e10pre',    name:'แก๊สโซฮอล์พรีเมี่ยม', price:40.04 },
 ];
 
 // โหลดจาก cache ก่อน — ป้องกันราคากลับเป็น default ตอนรีเฟรช
@@ -445,13 +449,20 @@ function init() {
 // ═══════════════════════════════════════════
 //  RENDER FUEL CHIPS
 // ═══════════════════════════════════════════
+const FUEL_EMOJI = {
+  'diesel':'🚛','dieselb20':'🌿','dieselpre':'💎',
+  'e95':'⭐','e91':'🔵','e85':'🌽','e20':'🍃','e10pre':'✨'
+};
+function getFuelEmoji(id) {
+  return FUEL_EMOJI[id] || '⛽';
+}
 function renderChips() {
   const container = document.getElementById('fuelChips');
   container.innerHTML = '';
   fuelTypes.forEach(f => {
     const chip = document.createElement('button');
     chip.className = 'fuel-chip' + (selectedFuel && selectedFuel.id === f.id ? ' active' : '');
-    chip.textContent = f.name;
+    chip.innerHTML = '<span>' + getFuelEmoji(f.id) + '</span><span>' + f.name + '</span>';
     chip.onclick = () => selectFuel(f);
     container.appendChild(chip);
   });
